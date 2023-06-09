@@ -24,7 +24,7 @@ for subfolder in subfolders:
         
         # export one dataframe per robot 
         for robot in tables.keys():
-            tables[robot].dropna(subset=['scan', 'poses']).to_csv(path_or_buf=str(subfolder) + '/' + str(robot)+'.csv', index=False)
+            tables[robot].dropna(subset=['scan', 'poses']).to_csv(path_or_buf=str(subfolder) + '/' + str(subfolder) + '_' + str(robot)+'.csv', index=False)
     
     
 
