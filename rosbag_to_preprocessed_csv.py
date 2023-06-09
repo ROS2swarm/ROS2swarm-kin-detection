@@ -8,7 +8,6 @@ import glob
 from experiment_measurement.config.lidar_data import table_column_config
 
 
-
 # get rosbag folders, exclude hidden folders 
 subfolders = [f.name for f in os.scandir('./') if f.is_dir() and f.name[:1] != '.']
 
@@ -24,12 +23,7 @@ for subfolder in subfolders:
         
         # export one dataframe per robot 
         for robot in tables.keys():
+            tables[robot]['robot'] = robot 
             tables[robot].dropna(subset=['scan', 'poses']).to_csv(path_or_buf=str(subfolder) + '/' + str(subfolder) + '_' + str(robot)+'.csv', index=False)
-    
-    
-
-
-
-
 
     
