@@ -2,7 +2,7 @@ rosbag2_bagfile_information:
   version: 4
   storage_identifier: sqlite3
   relative_file_paths:
-    - arena_3_drive_0.0_-1.0_0.0_1.0_2023-06-09_11:53:43_0.db3
+    - arena_3_drive_0.0_-1.0_0.0_1.0_2023-06-09_11-53-43_0.db3
   duration:
     nanoseconds: 66939705490
   starting_time:
