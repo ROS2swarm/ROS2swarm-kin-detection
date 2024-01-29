@@ -361,6 +361,8 @@ def detect_false_rotation(objects, arena, robots, r_self, lidar):
         pass # need to define objects
     elif arena == "arena-boxes-pillars":
         boundaries = [(0, -4.5), (0, 4.5), (-6, 0), (6, 0)]
+    else:
+       rais NotImplementedError(f"Arena {arena} is not defined.")
     
     circle_objects = []
     rectangle_objects = []
@@ -496,7 +498,7 @@ os.chdir('./'+folder)
 files_all = os.listdir('.')
 files = list(filter(lambda f: f.endswith('.csv'), files_all))
     
-arena = folder.replace(' ', '-')
+arena = args.arena
 print(folder)
 pprint(files)
 
