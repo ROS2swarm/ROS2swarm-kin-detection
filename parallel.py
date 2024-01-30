@@ -230,7 +230,7 @@ def create_plot(objects, robots, lidar, arena, r, robot, ax, rot_check, prct):
     ax.scatter(*robots.T, facecolors='none', edgecolors='orange') # robots 
     ax.scatter(*r.T, facecolors='green', edgecolors='green', marker='*') # robots 
     ax.scatter(*lidar_obj.T, s=0.5, color='blue') # lidar objects  'red' if rot_check else 
-    ax.scatter(*lidar_kin.T, s=0.5, color='orange') # lidar kins  'red' if rot_check else 
+    ax.scatter(*lidar_kin.T, s=0.5, color='green') # lidar kins  'red' if rot_check else 
 
 
 # In[176]:
@@ -322,7 +322,7 @@ def detect_kin(robots, lidar):
     return lidar[~sel], lidar[sel], sel 
 
 
-def detect_false_rotation(objects, arena, robots, r_self, lidar):
+def detect_false_rotation(objects, arena, robots, r_self, lidar, save_plt=False):
     match = np.zeros(len(lidar))
     match[np.isinf(lidar[:, 0])] = 1
     
@@ -362,7 +362,7 @@ def detect_false_rotation(objects, arena, robots, r_self, lidar):
     elif arena == "arena-boxes-pillars":
         boundaries = [(0, -4.5), (0, 4.5), (-6, 0), (6, 0)]
     else:
-       rais NotImplementedError(f"Arena {arena} is not defined.")
+       raise NotImplementedError(f"Arena {arena} is not defined.")
     
     circle_objects = []
     rectangle_objects = []
@@ -436,6 +436,11 @@ def detect_false_rotation(objects, arena, robots, r_self, lidar):
     prcntg = match.mean()
     chk = prcntg < 0.999
     match = match.astype(bool)
+    if save_plt:
+        fig, axes = plt.subplots(1, 1, figsize=(10, 10))
+        create_plot(objects, robots, [lidar[~match], lidar[match]], arena, r_self, 1, axes, chk, prcntg)
+        plt.savefig(old_cwd + f"/test-shift-figs/{args.arena}-idx{idx}-rot{shift[rob]}-shift{adj_1[rob]}-{adj_2[rob]}.png")
+        plt.close()
         
     return chk, lidar[~match], lidar[match], prcntg
 
@@ -534,7 +539,7 @@ for rob, f in enumerate(files):
         lidar, ld = transform_lidar(df, r, angle, idx, shift[rob])
     
         # check for false rotation calculation
-        rot_check, lm, lnm, best_prcntg = detect_false_rotation(objects, arena, robots, r, lidar)
+        rot_check, lm, lnm, best_prcntg = detect_false_rotation(objects, arena, robots, r, lidar, True)
         best_lm, best_lnm, best_shift, best_lidar, best_adj_1, best_adj_2, = lm, lnm, shift[rob], lidar, adj_1[rob], adj_2[rob]                        
         prcntg = best_prcntg  
 
@@ -570,7 +575,7 @@ for rob, f in enumerate(files):
                 print(itr, end='\r')
                 lidar=lidar+[adj_1[rob], adj_2[rob]]
                         
-                rot_check, lm, lnm, prcntg = detect_false_rotation(objects, arena, robots, r, lidar)
+                rot_check, lm, lnm, prcntg = detect_false_rotation(objects, arena, robots, r, lidar, True)
                         
                 if prcntg > best_prcntg:
                     best_prcntg, best_lm, best_lnm, best_adj_1, best_adj_2, best_lidar = prcntg, lm, lnm, adj_1[rob], adj_2[rob], lidar
@@ -584,7 +589,7 @@ for rob, f in enumerate(files):
                     print(itr, end='\r')
                     shift[rob] += math.pi / 720
                     lidar, _ = transform_lidar(df, r, angle, idx, shift[rob], ld)
-                    rot_check, lm, lnm, prcntg = detect_false_rotation(objects, arena, robots, r, lidar)
+                    rot_check, lm, lnm, prcntg = detect_false_rotation(objects, arena, robots, r, lidar, True)
                     if prcntg > best_prcntg:
                         best_prcntg, best_lm, best_lnm, best_shift, best_lidar = prcntg, lm, lnm, shift[rob], lidar
                         #print('2. best prcntg: ' + str(best_prcntg))
