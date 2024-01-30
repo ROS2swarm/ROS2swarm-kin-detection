@@ -288,8 +288,10 @@ def calculate_yaw(orientation):
     return np.arctan2(siny_cosp, cosy_cosp)
 
     
-def transform_lidar(df, r, angle, idx, shift=0, ld=None):  
+def transform_lidar(df, r, angle, idx, shift=0, xyshift=[0, 0], ld=None):  
     # transform lidar data from angle - distance to point 
+
+    xshift, yshift = xyshift
     
     # get lidar data 
     if not ld:
@@ -301,13 +303,20 @@ def transform_lidar(df, r, angle, idx, shift=0, ld=None):
 
     for i in range(0, 360): 
         if not math.isinf(ld[i]):
-            lidar[i][0] = ld[i] * math.cos(angle + np.deg2rad(i) + shift) + r[0]
-            lidar[i][1] = ld[i] * math.sin(angle + np.deg2rad(i) + shift) + r[1]
+            lidar[i][0] = ld[i] * math.cos(angle + np.deg2rad(i) + shift) + r[0] + xshift
+            lidar[i][1] = ld[i] * math.sin(angle + np.deg2rad(i) + shift) + r[1] + yshift
         else: 
             lidar[i][0] = float('inf')
             lidar[i][1] = float('inf')
     
     return lidar, ld
+
+def rot_lidar(lidar, angle, r):
+    r = np.atleast_2d(r)
+    R = np.array([[np.cos(angle), -np.sin(angle)],
+                  [np.sin(angle),  np.cos(angle)]])
+    res = (R @ (lidar.T - r.T) + r.T).T
+    return res
 
 
 # determine if lidar points belong to an object or kin based on gt position data
@@ -316,7 +325,7 @@ def detect_kin(robots, lidar):
     sel = np.zeros(len(lidar))
     for kin in range(len(robots)):
         robot = robots[kin]
-        sel_robot = ((lidar - robot) ** 2).sum(-1) < 0.13 ** 2
+        sel_robot = ((lidar - robot) ** 2).sum(-1) < 0.15 ** 2
         sel[sel_robot] = 1
     sel = sel.astype(bool)
     return lidar[~sel], lidar[sel], sel 
@@ -327,11 +336,11 @@ def detect_false_rotation(objects, arena, robots, r_self, lidar, save_plt=False)
     match[np.isinf(lidar[:, 0])] = 1
     
     for kin in range(len(robots)):
-        rob = robots[kin]
+        robl = robots[kin]
         # print(lidar.shape, rob.shape, r_self.shape, robots.shape)
-        if ((r_self - rob) ** 2).sum(-1) > 16:
+        if ((r_self - robl) ** 2).sum(-1) > 16:
             continue
-        match_kin = ((lidar - rob) ** 2).sum(-1) < 0.13 ** 2
+        match_kin = ((lidar - robl) ** 2).sum(-1) < 0.13 ** 2
         match[match_kin] = 1
     
     boundaries = []
@@ -420,15 +429,15 @@ def detect_false_rotation(objects, arena, robots, r_self, lidar, save_plt=False)
                 y_lid = lidar_sh[:, 0]
             
             slope = vec[1] / vec[0]
-            match_rec1 = (x_lid * slope - y_lid) ** 2 < 0.15 ** 2 
-            match_rec2 = (x_lid ** 2 - vec[0] ** 2) < 0
+            match_rec1 = (x_lid * slope - y_lid) ** 2 < 0.05 ** 2 
+            match_rec2 = ((x_lid + 0.05) ** 2 - vec[0] ** 2) < 0
             match_rec3 = x_lid * vec[0] > 0
             match_rec = match_rec1.astype(int) * match_rec2.astype(int) * match_rec3.astype(int)
             match[match_rec.astype(bool)] = 1
             
     for x, y, r in circle_objects:
-        match_circ1 = ((lidar - np.ndarray(shape=(1,2), buffer=np.array([x, y], dtype=float), dtype=float)) ** 2).sum(-1) < (r + 0.15) ** 2
-        match_circ2 = ((lidar - np.ndarray(shape=(1,2), buffer=np.array([x, y], dtype=float), dtype=float)) ** 2).sum(-1) > (r - 0.15) ** 2
+        match_circ1 = ((lidar - np.ndarray(shape=(1,2), buffer=np.array([x, y], dtype=float), dtype=float)) ** 2).sum(-1) < (r + 0.05) ** 2
+        match_circ2 = ((lidar - np.ndarray(shape=(1,2), buffer=np.array([x, y], dtype=float), dtype=float)) ** 2).sum(-1) > (r - 0.05) ** 2
         match_circ = match_circ1.astype(int) * match_circ2.astype(int)
         match[match_circ.astype(bool)] = 1
         
@@ -539,7 +548,7 @@ for rob, f in enumerate(files):
         lidar, ld = transform_lidar(df, r, angle, idx, shift[rob])
     
         # check for false rotation calculation
-        rot_check, lm, lnm, best_prcntg = detect_false_rotation(objects, arena, robots, r, lidar, True)
+        rot_check, lm, lnm, best_prcntg = detect_false_rotation(objects, arena, robots, r, lidar)
         best_lm, best_lnm, best_shift, best_lidar, best_adj_1, best_adj_2, = lm, lnm, shift[rob], lidar, adj_1[rob], adj_2[rob]                        
         prcntg = best_prcntg  
 
@@ -553,7 +562,7 @@ for rob, f in enumerate(files):
         concentric_circles = generate_concentric_circles(center_coordinates, num_circles, radius_increment)
 
                 
-        for i in range(1, num_circles):
+        for i in range(num_circles):
             # Accessing 50 evenly distributed points on the first circle
             num_points = 50
             circle_coordinates = concentric_circles[i]
@@ -574,8 +583,9 @@ for rob, f in enumerate(files):
                 adj_2[rob]=selected_y[itr]
                 print(itr, end='\r')
                 lidar=lidar+[adj_1[rob], adj_2[rob]]
+                lidar_shift = lidar.copy()
                         
-                rot_check, lm, lnm, prcntg = detect_false_rotation(objects, arena, robots, r, lidar, True)
+                rot_check, lm, lnm, prcntg = detect_false_rotation(objects, arena, robots, r, lidar)
                         
                 if prcntg > best_prcntg:
                     best_prcntg, best_lm, best_lnm, best_adj_1, best_adj_2, best_lidar = prcntg, lm, lnm, adj_1[rob], adj_2[rob], lidar
@@ -588,8 +598,8 @@ for rob, f in enumerate(files):
                     itr_2 += 1
                     print(itr, end='\r')
                     shift[rob] += math.pi / 720
-                    lidar, _ = transform_lidar(df, r, angle, idx, shift[rob], ld)
-                    rot_check, lm, lnm, prcntg = detect_false_rotation(objects, arena, robots, r, lidar, True)
+                    lidar = rot_lidar(lidar_shift.copy(), shift[rob], r)
+                    rot_check, lm, lnm, prcntg = detect_false_rotation(objects, arena, robots, r, lidar)
                     if prcntg > best_prcntg:
                         best_prcntg, best_lm, best_lnm, best_shift, best_lidar = prcntg, lm, lnm, shift[rob], lidar
                         #print('2. best prcntg: ' + str(best_prcntg))
@@ -601,7 +611,7 @@ for rob, f in enumerate(files):
                         #print('3. shift: ' + str(shift[rob]))
                         break
                         
-                if itr == (num_points-1):
+                if itr == (num_points-1) or i == 0:
                     #print(folder, subfolder, rob, 'No correction found!')
                     prcntg, lm, lnm, adj_1[rob],adj_2[rob], lidar = best_prcntg, best_lm, best_lnm, best_adj_1, best_adj_2, best_lidar
                     #print('3. prcntg: ' + str(prcntg))
