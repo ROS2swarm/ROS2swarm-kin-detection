@@ -581,8 +581,9 @@ for rob, f in enumerate(files):
                 itr+=1
                 adj_1[rob]=selected_x[itr]
                 adj_2[rob]=selected_y[itr]
+                adj = np.array([adj_1[rob], adj_2[rob]])
                 print(itr, end='\r')
-                lidar=lidar+[adj_1[rob], adj_2[rob]]
+                lidar = lidar + adj
                 lidar_shift = lidar.copy()
                         
                 rot_check, lm, lnm, prcntg = detect_false_rotation(objects, arena, robots, r, lidar)
@@ -598,7 +599,7 @@ for rob, f in enumerate(files):
                     itr_2 += 1
                     print(itr, end='\r')
                     shift[rob] += math.pi / 720
-                    lidar = rot_lidar(lidar_shift.copy(), shift[rob], r)
+                    lidar = rot_lidar(lidar_shift.copy(), shift[rob], r + adj)
                     rot_check, lm, lnm, prcntg = detect_false_rotation(objects, arena, robots, r, lidar)
                     if prcntg > best_prcntg:
                         best_prcntg, best_lm, best_lnm, best_shift, best_lidar = prcntg, lm, lnm, shift[rob], lidar
