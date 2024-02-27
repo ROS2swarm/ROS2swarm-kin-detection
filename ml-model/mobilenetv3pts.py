@@ -1,3 +1,7 @@
+"""
+Taken and adapted from: https://github.com/pytorch/vision/blob/main/torchvision/models/mobilenetv3.py
+"""
+
 import torch
 
 from functools import partial
